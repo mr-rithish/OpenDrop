@@ -1,7 +1,11 @@
 // signaling server URL (adjust for production)
 const SIGNALING_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'ws://localhost:3000'
-  : 'wss://opendrop.onrender.com'; // Replace with actual backend later
+  : 'wss://opendrop.onrender.com';
+
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000'
+  : 'https://opendrop.onrender.com';
 
 // State
 let ws;
@@ -415,6 +419,111 @@ function sendSignaling(data) {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(data));
     }
+}
+
+// ---------------------------
+// Share via Link (Upload)
+// ---------------------------
+
+const shareLinkBtn = document.getElementById('shareLinkBtn');
+const shareFileInput = document.getElementById('shareFileInput');
+
+shareLinkBtn.addEventListener('click', () => {
+    shareFileInput.click();
+});
+
+shareFileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    shareFileInput.value = '';
+
+    // Show uploading modal
+    modalTitle.textContent = 'Uploading File';
+    modalContent.innerHTML = `
+        <div class="file-info">
+            <i class="ri-upload-cloud-line"></i>
+            <div class="file-details">
+                <span class="file-name">${file.name}</span>
+                <span class="file-size">${(file.size / (1024 * 1024)).toFixed(2)} MB</span>
+            </div>
+        </div>
+        <div class="progress-container" id="uploadProgressContainer">
+            <div class="progress-bar" id="uploadProgressBar"></div>
+        </div>
+        <p class="upload-status" id="uploadStatus">Uploading...</p>
+    `;
+    modalActions.innerHTML = '';
+    modalOverlay.classList.remove('hidden');
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_URL}/upload`);
+
+        xhr.upload.onprogress = (evt) => {
+            if (evt.lengthComputable) {
+                const pct = (evt.loaded / evt.total) * 100;
+                const bar = document.getElementById('uploadProgressBar');
+                if (bar) bar.style.width = `${pct}%`;
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const data = JSON.parse(xhr.responseText);
+                showShareLinkResult(data);
+            } else {
+                showToast('Upload failed. File may be too large (max 100MB).', 'error');
+                modalOverlay.classList.add('hidden');
+            }
+        };
+
+        xhr.onerror = () => {
+            showToast('Upload failed. Check your connection.', 'error');
+            modalOverlay.classList.add('hidden');
+        };
+
+        xhr.send(formData);
+    } catch (err) {
+        showToast('Upload failed.', 'error');
+        modalOverlay.classList.add('hidden');
+    }
+});
+
+function showShareLinkResult(data) {
+    modalTitle.textContent = 'File Ready to Share';
+    modalContent.innerHTML = `
+        <div class="file-info">
+            <i class="ri-check-double-line"></i>
+            <div class="file-details">
+                <span class="file-name">${data.name}</span>
+                <span class="file-size">${(data.size / (1024 * 1024)).toFixed(2)} MB</span>
+            </div>
+        </div>
+        <div class="share-link-box">
+            <input type="text" id="shareLinkInput" value="${data.url}" readonly />
+            <button class="btn-copy" id="copyLinkBtn" title="Copy link">
+                <i class="ri-file-copy-line"></i>
+            </button>
+        </div>
+        <p class="share-link-note">Link expires in ${data.expiresIn}</p>
+    `;
+    modalActions.innerHTML = `
+        <button class="btn btn-primary" id="btnCloseShare">Done</button>
+    `;
+
+    document.getElementById('btnCloseShare').onclick = () => {
+        modalOverlay.classList.add('hidden');
+    };
+
+    document.getElementById('copyLinkBtn').onclick = () => {
+        const input = document.getElementById('shareLinkInput');
+        navigator.clipboard.writeText(input.value).then(() => {
+            showToast('Link copied to clipboard!', 'success');
+        });
+    };
 }
 
 // Start

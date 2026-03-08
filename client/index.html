@@ -17,14 +17,20 @@
   <body>
     <!-- Hidden file input for selecting files -->
     <input type="file" id="fileInput" style="display: none;" />
+    <input type="file" id="shareFileInput" style="display: none;" />
 
     <header>
       <div class="logo">
         <i class="ri-radar-fill"></i> OpenDrop
       </div>
-      <div class="status">
-        <div class="status-indicator offline" id="connectionStatusIndicator"></div>
-        <span id="connectionStatusText">Connecting...</span>
+      <div class="header-actions">
+        <button class="share-link-btn" id="shareLinkBtn">
+          <i class="ri-link"></i> Share via Link
+        </button>
+        <div class="status">
+          <div class="status-indicator offline" id="connectionStatusIndicator"></div>
+          <span id="connectionStatusText">Connecting...</span>
+        </div>
       </div>
     </header>
 
